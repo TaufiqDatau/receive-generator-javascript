@@ -8,65 +8,89 @@ class Report {
   constructor(msg) {
     this.def = msg;
     this.keys = new Array(this.def.level);
-    for(var i = 0; i < this.def.cols.length ; ++i) {
-      var cdf = this.def.cols[i];
-      if(cdf.hasOwnProperty("key")){
-          this.keys[cdf.key] = i ;  
-        }
-      if(cdf.hasOwnProperty("summary")){
-          cdf.summary = 0;
-          this.sums.push({ cdf: cdf, index: i });  
-        }
-    }
-    this.partialSum = Array.from({ length: this.keys.length }, //inisiasi partialSum
-            () => Array(this.sums.length).fill(0)); //indeks 0 untuk total, 1 untuk subTotal pertama dst.
-    console.log(this.partialSum.length);
+    this.initializeKeysAndSums();
     this.render(msg2);
-    console.log(this.partialSum);
     
   }
-
+  initializeKeysAndSums(){
+    this.def.cols.forEach((cdf, i) => {
+      if (cdf.hasOwnProperty("key")) {
+        this.keys[cdf.key] = i;
+      }
+    
+      if (cdf.hasOwnProperty("summary")) {
+        cdf.summary = 0;
+        this.sums.push({ cdf, index: i });
+      }
+    });
+    
+    this.partialSum = Array.from({ length: this.keys.length }, () =>
+      Array(this.sums.length).fill(0)
+    );
+  }
   render(rec) {
-    var nextValues = new Array(this.keys.length).fill(null); 
-    var p = new Page(this.def, document.body, this);
-    this.pages.push(p);
-    
+    const nextValues = new Array(this.keys.length).fill(null);
+    let currentPage = this.createPage();
+
     if (Array.isArray(rec.rows)) {
-      for (var i = 0; i < rec.rows.length; ++i) {
-        
-        for (var j = 0; j < this.sums.length; ++j) {
-          let sum = this.sums[j];
-          let colIndex = sum.index;
-          sum.cdf.summary += rec.rows[i].cols[colIndex];
-          for(let k=0; k< this.partialSum.length; k++){ //menjumlahkann semua
-            this.partialSum[k][j]+=rec.rows[i].cols[colIndex];          
-          }
-        }
-        
-        console.log(this.sums);
-        var row = p.renderRowDetail(rec.rows[i]);
-
-        for (let j = this.keys.length-1; j >=0; j--) {
-            let nextRowExists = i < rec.rows.length - 1;
-            nextValues[j] = nextRowExists ? rec.rows[i + 1].cols[this.keys[j]] : null;
-
-            if (rec.rows[i].cols[this.keys[j]] !== nextValues[j]) {
-              console.log(this.partialSum[this.keys[j]]);
-              for(let summarySum = 0; summarySum< this.sums.length; summarySum++){
-                this.sums[summarySum].cdf.summary = this.partialSum[this.keys[j] ?? 0][summarySum];
-              }
-              p.renderRowFooter();
-              this.resetSummary(this.keys[j]); 
-            }
-        }
-    
-        if (row) {
-          p = new Page(this.def, document.body);
-          this.pages.push(p);
-          p.renderRowDetail(row);
-        }
+      for (let i = 0; i < rec.rows.length; ++i) {
+        this.updateSumsAndPartialSum(rec.rows[i]);
+        const row = currentPage.renderRowDetail(rec.rows[i]);
+        this.updateAndRenderFooter(i, rec.rows, nextValues, row);
       }
     }
+  }
+
+  createPage() {
+    const page = new Page(this.def, document.body, this);
+    this.pages.push(page);
+    return page;
+  }
+
+  updateSumsAndPartialSum(row) {
+    for (let j = 0; j < this.sums.length; ++j) {
+      const { cdf, index } = this.sums[j];
+      cdf.summary += row.cols[index];
+
+      this.partialSum.forEach((partial, k) => {
+        partial[j] += row.cols[index];
+      });
+    }
+  }
+
+  updateAndRenderFooter(i, rows, nextValues, row) {
+    const currentPage = this.pages[this.pages.length - 1];
+
+    for (let j = this.keys.length - 1; j >= 0; j--) {
+      const nextRowExists = i < rows.length - 1;
+      nextValues[j] = nextRowExists ? rows[i + 1].cols[this.keys[j]] : null;
+
+      if (row && row !== undefined && row.offsetTop + row.offsetHeight > currentPage.max) {
+        return;
+      }
+
+      if (rows[i].cols[this.keys[j]] !== nextValues[j]) {
+        this.updateSummaryAndRenderFooter(currentPage, j);
+        this.resetSummary(this.keys[j]);
+      }
+    }
+
+    if (row) {
+      this.createNextPageAndRenderRow(row);
+    }
+  }
+
+  updateSummaryAndRenderFooter(currentPage, j) {
+    this.sums.forEach((sum, summarySum) => {
+      sum.cdf.summary = this.partialSum[this.keys[j] ?? 0][summarySum];
+    });
+
+    currentPage.renderRowFooter();
+  }
+
+  createNextPageAndRenderRow(row) {
+    const nextPage = this.createPage();
+    nextPage.renderRowDetail(row);
   }
   
   resetSummary(index) {
@@ -176,9 +200,8 @@ var msg = {
   cols:
     [
       { caption:"ID", field:"id", align:"center", type:1, width:80},
-      { caption:"District", field:"district", align:"center", type:1, width:30, key:1},
-      { caption:"Location", field:"location", align:"left", type:1, width:30,key:2},
-      { caption:"Type", field:"Type", align:"left", type:1, width:30, key:3},
+      { caption:"District", field:"district", align:"center", type:1, width:40, key:1},
+      { caption:"Location", field:"location", align:"left", type:1, width:40,key:2},
       { caption:"Description", field:"description", align:"left", type:2, width:180},
       { caption:"Contracted", field:"contracted", align:"right", type:2, width:150, summary:true },
       { caption:"Potential Renewal", field:"potential_renewal", align:"right", type:2, width:150  },
@@ -190,12 +213,12 @@ var msg = {
 var msg2 = {
   rows:
   [
-    {"id":1,"cols":["1","IC01","PIT","A","RKAB",100,100,200]},
-    {"id":2,"cols":["2","IC01","PIT","B","Export",100,100,200]},
-    {"id":3,"cols":["3","IC01","PORT","C","Electricity",100,100,200]},
-    {"id":4,"cols":["4","KM01","PIT","A","RKAB",100,100,200]},
-    {"id":5,"cols":["5","KM01","PIT","B","Export",100,100,200]},
-    {"id":6,"cols":["6","KM01","PORT","C","Electricity",100,100,200]} 
+    {"id":1,"cols":["1","IC01","PIT","RKAB",100,100,200]},
+    {"id":2,"cols":["2","IC01","PIT","Export",100,100,200]},
+    {"id":3,"cols":["3","IC01","PORT","Electricity",100,100,200]},
+    {"id":4,"cols":["4","KM01","PIT","RKAB",100,100,200]},
+    {"id":5,"cols":["5","KM01","PIT","Export",100,100,200]},
+    {"id":6,"cols":["6","KM01","PORT","Electricity",100,100,200]} 
   ] 
 }
 
