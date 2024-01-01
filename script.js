@@ -12,6 +12,7 @@ class Report {
     this.render(msg2);
     
   }
+  
   initializeKeysAndSums(){
     this.def.cols.forEach((cdf, i) => {
       if (cdf.hasOwnProperty("key")) {
@@ -33,7 +34,7 @@ class Report {
     let currentPage = this.createPage();
 
     if (Array.isArray(rec.rows)) {
-      for (let i = 0; i < rec.rows.length; ++i) {
+      for (let i = 0; i < rec.rows.length; i++) {
         this.updateSumsAndPartialSum(rec.rows[i]);
         const row = currentPage.renderRowDetail(rec.rows[i]);
         this.updateAndRenderFooter(i, rec.rows, nextValues, row);
@@ -50,8 +51,6 @@ class Report {
   updateSumsAndPartialSum(row) {
     for (let j = 0; j < this.sums.length; ++j) {
       const { cdf, index } = this.sums[j];
-      cdf.summary += row.cols[index];
-
       this.partialSum.forEach((partial, k) => {
         partial[j] += row.cols[index];
       });
@@ -122,12 +121,18 @@ class Page {
     this.renderPageContent(msg);
     this.renderPageFooter();
     this.dom.style.padding = this.pad+"px";
-    this.max = (pageHeight - this.header.offsetHeight - this.content.offsetHeight - this.footer.offsetHeight) 
-                - this.pad ;
-    this.content.style.height = this.max +"px";
-    this.max = this.max-24;
+    this.calculateMaxHeight();
   }
 
+  calculateMaxHeight() {
+    const pageHeight = this.dom.offsetHeight;
+    const pageTop = this.dom.offsetTop;
+  
+    this.max = (pageHeight - this.header.offsetHeight - this.content.offsetHeight - this.footer.offsetHeight) - this.pad;
+    this.content.style.height = this.max + "px";
+    this.max = this.max - 24;
+  }
+  
   renderPageContent(msg) {
       this.content = this.dom.appendChild(document.createElement("div"));
       this.content.className = "content";
@@ -202,7 +207,7 @@ var msg = {
       { caption:"ID", field:"id", align:"center", type:1, width:80},
       { caption:"District", field:"district", align:"center", type:1, width:40, key:1},
       { caption:"Location", field:"location", align:"left", type:1, width:40,key:2},
-      { caption:"Description", field:"description", align:"left", type:2, width:180},
+      { caption:"Description", field:"description", align:"left", type:2, width:180, key:3},
       { caption:"Contracted", field:"contracted", align:"right", type:2, width:150, summary:true },
       { caption:"Potential Renewal", field:"potential_renewal", align:"right", type:2, width:150  },
       { caption:"Amount", field:"amount", align:"right", type:1, width:150, summary:true }
@@ -218,7 +223,17 @@ var msg2 = {
     {"id":3,"cols":["3","IC01","PORT","Electricity",100,100,200]},
     {"id":4,"cols":["4","KM01","PIT","RKAB",100,100,200]},
     {"id":5,"cols":["5","KM01","PIT","Export",100,100,200]},
-    {"id":6,"cols":["6","KM01","PORT","Electricity",100,100,200]} 
+    {"id":6,"cols":["6","KM01","PORT","Electricity",100,100,200]},
+    {"id":7,"cols":["7","IC02","PIT","RKAB",150,120,270]},
+    {"id":8,"cols":["8","IC02","PIT","Export",120,90,210]},
+    {"id":9,"cols":["9","IC02","PORT","Electricity",200,180,380]},
+    {"id":10,"cols":["10","KM02","PIT","RKAB",80,70,150]},
+    {"id":11,"cols":["11","KM02","PIT","Export",110,80,190]},
+    {"id":12,"cols":["12","KM02","PORT","Electricity",250,200,450]},
+    {"id":13,"cols":["13","IC03","PIT","RKAB",130,110,240]},
+    {"id":14,"cols":["14","IC03","PIT","Export",90,70,160]},
+    {"id":15,"cols":["15","IC03","PORT","Electricity",180,160,340]},
+    {"id":16,"cols":["16","KM03","PIT","RKAB",120,100,220]}
   ] 
 }
 
