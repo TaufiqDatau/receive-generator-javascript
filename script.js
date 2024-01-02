@@ -12,7 +12,7 @@ class Report {
     this.render(msg2);
     
   }
-  
+
   initializeKeysAndSums(){
     this.def.cols.forEach((cdf, i) => {
       if (cdf.hasOwnProperty("key")) {
@@ -28,10 +28,11 @@ class Report {
     this.partialSum = Array.from({ length: this.keys.length }, () =>
       Array(this.sums.length).fill(0)
     );
+    console.log(this.partialSum);
   }
   render(rec) {
     const nextValues = new Array(this.keys.length).fill(null);
-    let currentPage = this.createPage();
+    let currentPage = this.createPage(); //currentIndex
 
     if (Array.isArray(rec.rows)) {
       for (let i = 0; i < rec.rows.length; i++) {
@@ -51,9 +52,13 @@ class Report {
   updateSumsAndPartialSum(row) {
     for (let j = 0; j < this.sums.length; ++j) {
       const { cdf, index } = this.sums[j];
+      console.log(cdf.caption);
       this.partialSum.forEach((partial, k) => {
+        console.log(`keys ${k}  :`+partial[j]);
         partial[j] += row.cols[index];
+        
       });
+      console.log("-----------");
     }
   }
 
@@ -82,9 +87,9 @@ class Report {
   updateSummaryAndRenderFooter(currentPage, j) {
     this.sums.forEach((sum, summarySum) => {
       sum.cdf.summary = this.partialSum[this.keys[j] ?? 0][summarySum];
-    });
-
-    currentPage.renderRowFooter();
+    });  //update summary
+      // this is a new update
+    currentPage.renderRowFooter(); //Mencetak footer
   }
 
   createNextPageAndRenderRow(row) {
@@ -126,7 +131,6 @@ class Page {
 
   calculateMaxHeight() {
     const pageHeight = this.dom.offsetHeight;
-    const pageTop = this.dom.offsetTop;
   
     this.max = (pageHeight - this.header.offsetHeight - this.content.offsetHeight - this.footer.offsetHeight) - this.pad;
     this.content.style.height = this.max + "px";
@@ -207,7 +211,7 @@ var msg = {
       { caption:"ID", field:"id", align:"center", type:1, width:80},
       { caption:"District", field:"district", align:"center", type:1, width:40, key:1},
       { caption:"Location", field:"location", align:"left", type:1, width:40,key:2},
-      { caption:"Description", field:"description", align:"left", type:2, width:180, key:3},
+      { caption:"Description", field:"description", align:"left", type:2, width:180},
       { caption:"Contracted", field:"contracted", align:"right", type:2, width:150, summary:true },
       { caption:"Potential Renewal", field:"potential_renewal", align:"right", type:2, width:150  },
       { caption:"Amount", field:"amount", align:"right", type:1, width:150, summary:true }
