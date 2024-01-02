@@ -2,71 +2,107 @@
 class Report {
   pages = [];
   def = null;
+  keycdf=[];
   keys = null;
   sums = [] ; 
   partialSum=[]; //menampung hasil total dan seluruh sub total
   constructor(msg) {
     this.def = msg;
     this.keys = new Array(this.def.level);
-    for(var i = 0; i < this.def.cols.length ; ++i) {
-      var cdf = this.def.cols[i];
-      if(cdf.hasOwnProperty("key")){
-          this.keys[cdf.key] = i ;  
-        }
-      if(cdf.hasOwnProperty("summary")){
-          cdf.summary = 0;
-          this.sums.push({ cdf: cdf, index: i });  
-        }
-    }
-    this.partialSum = Array.from({ length: this.keys.length }, //inisiasi partialSum
-            () => Array(this.sums.length).fill(0)); //indeks 0 untuk total, 1 untuk subTotal pertama dst.
-    console.log(this.partialSum.length);
+    console.log(this.def);
+    this.initializeKeysAndSums();
     this.render(msg2);
-    console.log(this.partialSum);
     
   }
 
+  initializeKeysAndSums(){
+    this.def.cols.forEach((cdf, i) => {
+      if (cdf.hasOwnProperty("key")) {
+        this.keys[cdf.key] = i;
+        this.keycdf[cdf.key]=cdf;
+      }
+    
+      if (cdf.hasOwnProperty("summary")) {
+        cdf.summary = 0;
+        this.sums.push({ cdf, index: i });
+      }
+    });
+    
+    this.partialSum = Array.from({ length: this.keys.length }, () =>
+      Array(this.sums.length).fill(0)
+    );
+    
+  }
   render(rec) {
-    var nextValues = new Array(this.keys.length).fill(null); 
-    var p = new Page(this.def, document.body, this);
-    this.pages.push(p);
-    
+    const nextValues = new Array(this.keys.length).fill(null);
+    let currentPage = this.createPage(); //currentIndex
+
     if (Array.isArray(rec.rows)) {
-      for (var i = 0; i < rec.rows.length; ++i) {
-        
-        for (var j = 0; j < this.sums.length; ++j) {
-          let sum = this.sums[j];
-          let colIndex = sum.index;
-          sum.cdf.summary += rec.rows[i].cols[colIndex];
-          for(let k=0; k< this.partialSum.length; k++){ //menjumlahkann semua
-            this.partialSum[k][j]+=rec.rows[i].cols[colIndex];          
-          }
-        }
-        
-        console.log(this.sums);
-        var row = p.renderRowDetail(rec.rows[i]);
-
-        for (let j = this.keys.length-1; j >=0; j--) {
-            let nextRowExists = i < rec.rows.length - 1;
-            nextValues[j] = nextRowExists ? rec.rows[i + 1].cols[this.keys[j]] : null;
-
-            if (rec.rows[i].cols[this.keys[j]] !== nextValues[j]) {
-              console.log(this.partialSum[this.keys[j]]);
-              for(let summarySum = 0; summarySum< this.sums.length; summarySum++){
-                this.sums[summarySum].cdf.summary = this.partialSum[this.keys[j] ?? 0][summarySum];
-              }
-              p.renderRowFooter();
-              this.resetSummary(this.keys[j]); 
-            }
-        }
-    
-        if (row) {
-          p = new Page(this.def, document.body);
-          this.pages.push(p);
-          p.renderRowDetail(row);
-        }
+      for (let i = 0; i < rec.rows.length; i++) {
+        this.updateSumsAndPartialSum(rec.rows[i]);
+        const row = currentPage.renderRowDetail(rec.rows[i]);
+        this.updateAndRenderFooter(i, rec.rows, nextValues, row);
       }
     }
+  }
+
+  createPage() {
+    const page = new Page(this.def, document.body, this);
+    this.pages.push(page);
+    return page;
+  }
+
+  updateSumsAndPartialSum(row) {
+    for (let j = 0; j < this.sums.length; ++j) {
+      const { cdf, index } = this.sums[j];
+      
+      this.partialSum.forEach((partial, k) => {
+        
+        partial[j] += row.cols[index];
+        
+      });
+
+    }
+  }
+
+  updateAndRenderFooter(i, rows, nextValues, row) {
+    const currentPage = this.pages[this.pages.length - 1];
+
+    for (let j = this.def.cols.length - 1; j >= 0; j--) {
+      if(this.def.cols[j].hasOwnProperty("key")){
+        let index = this.def.cols[j].key;
+        const nextRowExists = i < rows.length - 1;
+        nextValues[index] = nextRowExists ? rows[i + 1].cols[this.keys[index]] : null;
+
+        if (row && row !== undefined && row.offsetTop + row.offsetHeight > currentPage.max) {
+          return;
+        }
+
+        if (rows[i].cols[this.keys[index]] !== nextValues[index]) {
+          this.updateSummaryAndRenderFooter(currentPage, index, rows[i].cols[this.keys[index]]);
+          this.resetSummary(this.keys[index]);
+          console.log("-----------");
+        }
+      }
+      
+    }
+
+    if (row) {
+      this.createNextPageAndRenderRow(row);
+    }
+  }
+
+  updateSummaryAndRenderFooter(currentPage, j,identity) {
+    this.sums.forEach((sum, summarySum) => {
+      sum.cdf.summary = this.partialSum[this.keys[j] ?? 0][summarySum];
+    });  
+          
+    currentPage.renderRowFooter(this.keycdf[this.keys[j]??1].caption + `: ${identity}` ); //Mencetak footer
+  }
+
+  createNextPageAndRenderRow(row) {
+    const nextPage = this.createPage();
+    nextPage.renderRowDetail(row);
   }
   
   resetSummary(index) {
@@ -98,12 +134,17 @@ class Page {
     this.renderPageContent(msg);
     this.renderPageFooter();
     this.dom.style.padding = this.pad+"px";
-    this.max = (pageHeight - this.header.offsetHeight - this.content.offsetHeight - this.footer.offsetHeight) 
-                - this.pad ;
-    this.content.style.height = this.max +"px";
-    this.max = this.max-24;
+    this.calculateMaxHeight();
   }
 
+  calculateMaxHeight() {
+    const pageHeight = this.dom.offsetHeight;
+  
+    this.max = (pageHeight - this.header.offsetHeight - this.content.offsetHeight - this.footer.offsetHeight) - this.pad;
+    this.content.style.height = this.max + "px";
+    this.max = this.max - 24;
+  }
+  
   renderPageContent(msg) {
       this.content = this.dom.appendChild(document.createElement("div"));
       this.content.className = "content";
@@ -147,7 +188,7 @@ class Page {
       }
   }
 
-  renderRowFooter() {
+  renderRowFooter(context) {
     var rowFooter = this.content.appendChild(document.createElement("div"));
     rowFooter.className = "row-footer";
     for(var i = 0; i < this.def.cols.length ; i++) {
@@ -155,7 +196,13 @@ class Page {
       var fcol = rowFooter.appendChild(document.createElement("div"));
        if(cdf.hasOwnProperty("summary")){
         fcol.innerHTML = cdf.summary;
+        }
+      if(cdf.caption=="District"){
+        fcol.innerHTML = `Sub Total`
       } 
+      if(cdf.caption=="Location"){
+        fcol.innerHTML = `${context}`;
+      }
       fcol.style.textAlign = cdf.align ?? ""; 
     }
   }
@@ -176,9 +223,8 @@ var msg = {
   cols:
     [
       { caption:"ID", field:"id", align:"center", type:1, width:80},
-      { caption:"District", field:"district", align:"center", type:1, width:30, key:1},
-      { caption:"Location", field:"location", align:"left", type:1, width:30,key:2},
-      { caption:"Type", field:"Type", align:"left", type:1, width:30, key:3},
+      { caption:"District", field:"district", align:"center", type:1, width:40, key:1},
+      { caption:"Location", field:"location", align:"left", type:1, width:40,key:2},
       { caption:"Description", field:"description", align:"left", type:2, width:180},
       { caption:"Contracted", field:"contracted", align:"right", type:2, width:150, summary:true },
       { caption:"Potential Renewal", field:"potential_renewal", align:"right", type:2, width:150, summary:true  },
@@ -190,12 +236,22 @@ var msg = {
 var msg2 = {
   rows:
   [
-    {"id":1,"cols":["1","IC01","PIT","A","RKAB",100,100,200]},
-    {"id":2,"cols":["2","IC01","PIT","B","Export",100,100,200]},
-    {"id":3,"cols":["3","IC01","PORT","C","Electricity",100,100,200]},
-    {"id":4,"cols":["4","KM01","PIT","A","RKAB",100,100,200]},
-    {"id":5,"cols":["5","KM01","PIT","B","Export",100,100,200]},
-    {"id":6,"cols":["6","KM01","PORT","C","Electricity",100,100,200]} 
+    {"id":1,"cols":["1","IC01","PIT","RKAB",100,100,200]},
+    {"id":2,"cols":["2","IC01","PIT","Export",100,100,200]},
+    {"id":3,"cols":["3","IC01","PORT","Electricity",100,100,200]},
+    {"id":4,"cols":["4","KM01","PIT","RKAB",100,100,200]},
+    {"id":5,"cols":["5","KM01","PIT","Export",100,100,200]},
+    {"id":6,"cols":["6","KM01","PORT","Electricity",100,100,200]},
+    {"id":7,"cols":["7","IC02","PIT","RKAB",150,120,270]},
+    {"id":8,"cols":["8","IC02","PIT","Export",120,90,210]},
+    {"id":9,"cols":["9","IC02","PORT","Electricity",200,180,380]},
+    {"id":10,"cols":["10","KM02","PIT","RKAB",80,70,150]},
+    {"id":11,"cols":["11","KM02","PIT","Export",110,80,190]},
+    {"id":12,"cols":["12","KM02","PORT","Electricity",250,200,450]},
+    {"id":13,"cols":["13","IC03","PIT","RKAB",130,110,240]},
+    {"id":14,"cols":["14","IC03","PIT","Export",90,70,160]},
+    {"id":15,"cols":["15","IC03","PORT","Electricity",180,160,340]},
+    {"id":16,"cols":["16","KM03","PIT","RKAB",120,100,220]}
   ] 
 }
 
