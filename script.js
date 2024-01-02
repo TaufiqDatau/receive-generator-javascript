@@ -69,7 +69,7 @@ class Report {
     const currentPage = this.pages[this.pages.length - 1];
 
     for (let j = this.def.cols.length - 1; j >= 0; j--) {
-      if(this.def.cols[j].hasOwnProperty("key")){
+      if(this.def.cols[j].hasOwnProperty("key") || j==0){
         let index = this.def.cols[j].key;
         const nextRowExists = i < rows.length - 1;
         nextValues[index] = nextRowExists ? rows[i + 1].cols[this.keys[index]] : null;
@@ -79,7 +79,7 @@ class Report {
         }
 
         if (rows[i].cols[this.keys[index]] !== nextValues[index]) {
-          this.updateSummaryAndRenderFooter(currentPage, index, rows[i].cols[this.keys[index]]);
+          this.updateSummaryAndRenderFooter(currentPage, index ?? 0, rows[i].cols[this.keys[index]]);
           this.resetSummary(this.keys[index]);
           console.log("-----------");
         }
@@ -96,8 +96,11 @@ class Report {
     this.sums.forEach((sum, summarySum) => {
       sum.cdf.summary = this.partialSum[this.keys[j] ?? 0][summarySum];
     });  
-          
-    currentPage.renderRowFooter(this.keycdf[this.keys[j]??1].caption + `: ${identity}` ); //Mencetak footer
+    if(j!==0){
+      currentPage.renderRowFooter(this.keycdf[this.keys[j]??1].caption + `: ${identity}`,j ); //Mencetak footer
+    }else{
+      currentPage.renderRowFooter("Total",j);
+    } 
   }
 
   createNextPageAndRenderRow(row) {
@@ -188,19 +191,19 @@ class Page {
       }
   }
 
-  renderRowFooter(context) {
+  renderRowFooter(context,j) {
     var rowFooter = this.content.appendChild(document.createElement("div"));
     rowFooter.className = "row-footer";
     for(var i = 0; i < this.def.cols.length ; i++) {
       var cdf = this.def.cols[i];
       var fcol = rowFooter.appendChild(document.createElement("div"));
-       if(cdf.hasOwnProperty("summary")){
+       if(cdf.hasOwnProperty("summary") ){
         fcol.innerHTML = cdf.summary;
-        }
-      if(cdf.caption=="District"){
+      }
+      else if(cdf.caption=="District" && j!==0){
         fcol.innerHTML = `Sub Total`
       } 
-      if(cdf.caption=="Location"){
+      else if(cdf.caption=="Location"){
         fcol.innerHTML = `${context}`;
       }
       fcol.style.textAlign = cdf.align ?? ""; 
