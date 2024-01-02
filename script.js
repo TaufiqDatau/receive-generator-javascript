@@ -181,7 +181,7 @@ var msg = {
       { caption:"Type", field:"Type", align:"left", type:1, width:30, key:3},
       { caption:"Description", field:"description", align:"left", type:2, width:180},
       { caption:"Contracted", field:"contracted", align:"right", type:2, width:150, summary:true },
-      { caption:"Potential Renewal", field:"potential_renewal", align:"right", type:2, width:150  },
+      { caption:"Potential Renewal", field:"potential_renewal", align:"right", type:2, width:150, summary:true  },
       { caption:"Amount", field:"amount", align:"right", type:1, width:150, summary:true }
     ],
   level:3
