@@ -227,7 +227,7 @@ var msg = {
       { caption:"Location", field:"location", align:"left", type:1, width:40,key:2},
       { caption:"Description", field:"description", align:"left", type:2, width:180},
       { caption:"Contracted", field:"contracted", align:"right", type:2, width:150, summary:true },
-      { caption:"Potential Renewal", field:"potential_renewal", align:"right", type:2, width:150, summary:true  },
+      { caption:"Potential Renewal", field:"potential_renewal", align:"right", type:2, width:150 },
       { caption:"Amount", field:"amount", align:"right", type:1, width:150, summary:true }
     ],
   level:3
