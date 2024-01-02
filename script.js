@@ -2,12 +2,14 @@
 class Report {
   pages = [];
   def = null;
+  keycdf=[];
   keys = null;
   sums = [] ; 
   partialSum=[]; //menampung hasil total dan seluruh sub total
   constructor(msg) {
     this.def = msg;
     this.keys = new Array(this.def.level);
+    console.log(this.def);
     this.initializeKeysAndSums();
     this.render(msg2);
     
@@ -17,6 +19,7 @@ class Report {
     this.def.cols.forEach((cdf, i) => {
       if (cdf.hasOwnProperty("key")) {
         this.keys[cdf.key] = i;
+        this.keycdf[cdf.key]=cdf;
       }
     
       if (cdf.hasOwnProperty("summary")) {
@@ -28,7 +31,7 @@ class Report {
     this.partialSum = Array.from({ length: this.keys.length }, () =>
       Array(this.sums.length).fill(0)
     );
-    console.log(this.partialSum);
+    
   }
   render(rec) {
     const nextValues = new Array(this.keys.length).fill(null);
@@ -52,31 +55,36 @@ class Report {
   updateSumsAndPartialSum(row) {
     for (let j = 0; j < this.sums.length; ++j) {
       const { cdf, index } = this.sums[j];
-      console.log(cdf.caption);
+      
       this.partialSum.forEach((partial, k) => {
-        console.log(`keys ${k}  :`+partial[j]);
+        
         partial[j] += row.cols[index];
         
       });
-      console.log("-----------");
+
     }
   }
 
   updateAndRenderFooter(i, rows, nextValues, row) {
     const currentPage = this.pages[this.pages.length - 1];
 
-    for (let j = this.keys.length - 1; j >= 0; j--) {
-      const nextRowExists = i < rows.length - 1;
-      nextValues[j] = nextRowExists ? rows[i + 1].cols[this.keys[j]] : null;
+    for (let j = this.def.cols.length - 1; j >= 0; j--) {
+      if(this.def.cols[j].hasOwnProperty("key")){
+        let index = this.def.cols[j].key;
+        const nextRowExists = i < rows.length - 1;
+        nextValues[index] = nextRowExists ? rows[i + 1].cols[this.keys[index]] : null;
 
-      if (row && row !== undefined && row.offsetTop + row.offsetHeight > currentPage.max) {
-        return;
-      }
+        if (row && row !== undefined && row.offsetTop + row.offsetHeight > currentPage.max) {
+          return;
+        }
 
-      if (rows[i].cols[this.keys[j]] !== nextValues[j]) {
-        this.updateSummaryAndRenderFooter(currentPage, j);
-        this.resetSummary(this.keys[j]);
+        if (rows[i].cols[this.keys[index]] !== nextValues[index]) {
+          this.updateSummaryAndRenderFooter(currentPage, index, rows[i].cols[this.keys[index]]);
+          this.resetSummary(this.keys[index]);
+          console.log("-----------");
+        }
       }
+      
     }
 
     if (row) {
@@ -84,12 +92,12 @@ class Report {
     }
   }
 
-  updateSummaryAndRenderFooter(currentPage, j) {
+  updateSummaryAndRenderFooter(currentPage, j,identity) {
     this.sums.forEach((sum, summarySum) => {
       sum.cdf.summary = this.partialSum[this.keys[j] ?? 0][summarySum];
-    });  //update summary
-      // this is a new update
-    currentPage.renderRowFooter(); //Mencetak footer
+    });  
+          
+    currentPage.renderRowFooter(this.keycdf[this.keys[j]??1].caption + `: ${identity}` ); //Mencetak footer
   }
 
   createNextPageAndRenderRow(row) {
@@ -180,7 +188,7 @@ class Page {
       }
   }
 
-  renderRowFooter() {
+  renderRowFooter(context) {
     var rowFooter = this.content.appendChild(document.createElement("div"));
     rowFooter.className = "row-footer";
     for(var i = 0; i < this.def.cols.length ; i++) {
@@ -188,7 +196,13 @@ class Page {
       var fcol = rowFooter.appendChild(document.createElement("div"));
        if(cdf.hasOwnProperty("summary")){
         fcol.innerHTML = cdf.summary;
+        }
+      if(cdf.caption=="District"){
+        fcol.innerHTML = `Sub Total`
       } 
+      if(cdf.caption=="Location"){
+        fcol.innerHTML = `${context}`;
+      }
       fcol.style.textAlign = cdf.align ?? ""; 
     }
   }
