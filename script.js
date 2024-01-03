@@ -9,7 +9,6 @@ class Report {
   constructor(msg) {
     this.def = msg;
     this.keys = new Array(this.def.level);
-    console.log(this.def);
     this.initializeKeysAndSums();
     this.render(msg2);
     
@@ -81,7 +80,6 @@ class Report {
         if (rows[i].cols[this.keys[index]] !== nextValues[index]) {
           this.updateSummaryAndRenderFooter(currentPage, index ?? 0, rows[i].cols[this.keys[index]]);
           this.resetSummary(this.keys[index]);
-          console.log("-----------");
         }
       }
       
@@ -104,8 +102,8 @@ class Report {
   }
 
   createNextPageAndRenderRow(row) {
-    const nextPage = this.createPage();
-    nextPage.renderRowDetail(row);
+    const nextRow = this.createPage();
+    nextRow.renderRowDetail(row);
   }
   
   resetSummary(index) {
