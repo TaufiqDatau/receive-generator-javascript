@@ -97,7 +97,7 @@ class Report {
     if(j!==0){
       currentPage.renderRowFooter(this.keycdf[this.keys[j]??1].caption + `: ${identity}`,j ); //Mencetak footer
     }else{
-      currentPage.renderRowFooter("Total",j);//pembaharuan ninu ninu
+      currentPage.renderRowFooter("Total",j);//pembaharuan branch b dan a
     } 
   }
 
